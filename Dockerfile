@@ -5,26 +5,20 @@ ARG ISE_BASE_IMAGE=install
 FROM ubuntu:14.04 AS install
 
 RUN mkdir -p /tmp/install
-# adding xilinx installer
-COPY xilinx-installer/Xilinx_ISE_DS_14.7_1015_1-1.tar  /tmp
-COPY xilinx-installer/Xilinx_ISE_DS_14.7_1015_1-3.zip.xz  /tmp
-COPY xilinx-installer/Xilinx_ISE_DS_14.7_1015_1-2.zip.xz  /tmp
-COPY xilinx-installer/Xilinx_ISE_DS_14.7_1015_1-4.zip.xz  /tmp
+# Accept the full Linux archive or the original four split archives.
+COPY xilinx-installer/ /tmp/media/
 
 # adding scripts
 ADD files /
 
 # basic packages
 RUN apt-get update && \
-    apt-get -y install git expect locales \
+    apt-get -y install git locales \
     libglib2.0-0 libsm6 libxi6 libxrender1 libxrandr2 \
     libfreetype6 libfontconfig1
 
-RUN cd /tmp/install && \
-    tar xvf ../Xilinx_ISE_DS_14.7_1015_1-1.tar && \
-    ls /tmp && \
-    cd /tmp/install && \
-    TERM=xterm /tmp/setup
+COPY tools/install-vendor /usr/local/bin/install-vendor
+RUN /usr/local/bin/install-vendor
 
 RUN rm -rf /tmp/install/
 RUN rm -rf /tmp/*
@@ -39,7 +33,7 @@ COPY files/usr/local/bin/wrapper /usr/local/bin
 
 # basic packages
 RUN apt-get update && \
-    apt-get -y install git expect locales \
+    apt-get -y install git locales \
     libglib2.0-0 libsm6 libxi6 libxrender1 libxrandr2 \
     libfreetype6 libfontconfig1
 
