@@ -89,7 +89,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=installed /opt/Xilinx/14.7/ISE_DS/ISE /opt/Xilinx/14.7/ISE_DS/ISE
 COPY --from=installed /opt/Xilinx/14.7/ISE_DS/common /opt/Xilinx/14.7/ISE_DS/common
 
+# GUI support is optional; both variants contain the same CLI tools.
+ARG ENABLE_GUI=1
+RUN case "$ENABLE_GUI" in \
+        0) exit 0 ;; \
+        1) ;; \
+        *) echo 'ENABLE_GUI must be 0 or 1' >&2; exit 2 ;; \
+    esac && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        openjdk-8-jre build-essential libxmu6 libxm4 libxpm4 libstdc++5 \
+        x11-utils xauth xterm fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/* && \
+    mv /opt/Xilinx/14.7/ISE_DS/ISE/java/lin64/jre \
+       /opt/Xilinx/14.7/ISE_DS/ISE/java/lin64/jre.original && \
+    ln -s /usr/lib/jvm/java-8-openjdk-amd64/jre \
+       /opt/Xilinx/14.7/ISE_DS/ISE/java/lin64/jre && \
+    for tool in analyzer inserter; do \
+        script=/opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64/unwrapped/$tool; \
+        test "$(head -n 1 "$script")" = '#!/bin/sh' && \
+        sed -i '1s|#!/bin/sh|#!/bin/bash|' "$script" || exit 1; \
+    done
+
 COPY files/usr/local/bin/wrapper /usr/local/bin/wrapper
+COPY tools/gui-entrypoint /usr/local/bin/ise-gui-entrypoint
+ENV ISE_ENABLE_GUI=${ENABLE_GUI}
 ENV HOME=/tmp LANG=C.UTF-8
 WORKDIR /build
 ENTRYPOINT ["/usr/local/bin/wrapper"]
