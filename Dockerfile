@@ -1,3 +1,7 @@
+# By default install from local vendor media; an existing image can
+# supply the files instead with --build-arg ISE_BASE_IMAGE=...
+ARG ISE_BASE_IMAGE=install
+
 FROM ubuntu:14.04 AS install
 
 RUN mkdir -p /tmp/install
@@ -27,7 +31,8 @@ RUN rm -rf /tmp/*
 RUN rm -rf /opt/Xilinx/14.7/ISE_DS/EDK
 RUN rm -rf /opt/Xilinx/14.7/ISE_DS/PlanAhead
 
-FROM ubuntu:14.04
+# Preserve the original Linux GUI/USB packaging as an explicit target.
+FROM ubuntu:14.04 AS legacy
 
 COPY --from=install /opt/Xilinx /opt/Xilinx
 COPY files/usr/local/bin/wrapper /usr/local/bin
@@ -69,3 +74,23 @@ RUN mkdir .config/Xilinx -p && \
 
 #source ise settings
 RUN echo "source /opt/Xilinx/14.7/ISE_DS/settings64.sh" >> /home/ise/.bashrc
+
+FROM ${ISE_BASE_IMAGE} AS installed
+
+FROM ubuntu:22.04 AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash ca-certificates git make time \
+    libglib2.0-0 libsm6 libxi6 libxrender1 libxrandr2 libxtst6 \
+    libfreetype6 libfontconfig1 libncurses5 libusb-0.1-4 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Keep all ISE device databases and both library architectures. EDK and
+# PlanAhead are separate products and are not needed for this CLI target.
+COPY --from=installed /opt/Xilinx/14.7/ISE_DS/ISE /opt/Xilinx/14.7/ISE_DS/ISE
+COPY --from=installed /opt/Xilinx/14.7/ISE_DS/common /opt/Xilinx/14.7/ISE_DS/common
+
+COPY files/usr/local/bin/wrapper /usr/local/bin/wrapper
+ENV HOME=/tmp LANG=C.UTF-8
+WORKDIR /build
+ENTRYPOINT ["/usr/local/bin/wrapper"]
+CMD ["bash"]
