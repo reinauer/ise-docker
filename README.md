@@ -89,7 +89,9 @@ Linux. On Apple Silicon, enable Docker Desktop's Apple Virtualization
 framework and Rosetta in [Docker's settings](https://docs.docker.com/desktop/settings-and-maintenance/settings/).
 
 Both `xilinx` and `xilinx-gui` default to the same `ise-14-7` image.
-`xilinx` mounts the current directory, uses your UID/GID, and preserves
+The launchers mount the enclosing Git repository, or the current directory
+outside a Git checkout. `ISE_PROJECT_ROOT` overrides this selection.
+`xilinx` uses your UID/GID and preserves
 argument quoting and exit status. Docker's `--init` handles child-process
 reaping and signal forwarding to the main process. Batch builds need no
 terminal or display server, even with GUI support installed.
@@ -102,11 +104,11 @@ cd examples/counter
 ```
 
 For your own project, run the launcher from that project's directory.
-Set `ISE_PROJECT_ROOT` when the build needs access to sibling directories:
+Sibling output directories within its Git checkout are available too:
 
 ```sh
 cd /path/to/project/RTL
-ISE_PROJECT_ROOT=.. /path/to/ise-docker/xilinx make
+/path/to/ise-docker/xilinx make
 ```
 
 Keep project sources, constraints, Makefiles and project-specific CI in
@@ -117,6 +119,24 @@ requested command; a failed synthesis or fit remains a failed build.
 `ISE_LICENSE_FILE` optionally selects a host license file, mounted
 read-only; otherwise the launcher uses `Xilinx.lic` beside the script if
 present. Licenses are not packaged in the image.
+
+### Install the launchers on PATH
+
+After building the image, copy the self-contained host scripts to a
+directory on your PATH:
+
+```sh
+mkdir -p ~/bin
+cp xilinx xilinx-gui ~/bin/
+chmod +x ~/bin/xilinx ~/bin/xilinx-gui
+```
+
+Then use `xilinx make` or `xilinx-gui ise project.xise` from any project.
+The scripts require Docker; GUI use also needs the host X11 setup below.
+Git is used to find the project root when available. Outside a checkout,
+set `ISE_PROJECT_ROOT=..` if sibling directories must be mounted.
+Set `ISE_LICENSE_FILE` to your license path, or put `Xilinx.lic` beside the
+installed launchers. Copy updated scripts again after upgrading this repo.
 
 ## Graphical applications
 

@@ -3,7 +3,8 @@
 set -e
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-project_root=$(cd -- "${ISE_PROJECT_ROOT:-$PWD}" && pwd -P)
+project_root=${ISE_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}
+project_root=$(cd -- "$project_root" && pwd -P)
 working_dir=$(pwd -P)
 if [[ $working_dir != "$project_root" && $working_dir != "$project_root/"* ]]; then
     echo 'The working directory must be inside ISE_PROJECT_ROOT.' >&2
