@@ -12,6 +12,8 @@ fi
 source "$ise_root/common/.settings64.sh" "$ise_root/common"
 # shellcheck source=/dev/null
 source "$ise_root/ISE/.settings64.sh" "$ise_root/ISE"
+# Keep the iMPACT cable-driver launcher ahead of the vendor binaries.
+export PATH="/usr/local/bin:$PATH"
 
 if [[ $# == 0 ]]; then
     set -- bash

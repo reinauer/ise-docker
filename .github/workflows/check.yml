@@ -7,4 +7,4 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - run: bash -n build xilinx xilinx-gui tools/gui-entrypoint tools/install-vendor files/usr/local/bin/wrapper
+      - run: bash -n build xilinx xilinx-gui run-docker run-docker-ssh tools/gui-entrypoint tools/install-vendor tools/impact files/usr/local/bin/wrapper

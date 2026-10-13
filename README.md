@@ -5,7 +5,8 @@ support on Linux and macOS.
 
 ## Build one image for CLI and GUI
 
-The single `Dockerfile` uses the installer stage by default. Run:
+The single `Dockerfile` uses Ubuntu 22.04 for both installation and runtime.
+It installs from the vendor archive by default. Run:
 
 ```sh
 # GUI enabled by default; Rosetta binary patch disabled.
@@ -38,7 +39,8 @@ docker build --platform linux/amd64 --build-arg ENABLE_GUI=0 \
 GNU make 4.3, and the same ISE and common files.
 GUI support adds Java 8, GCC for ISim, X11 libraries, and ChipScope launcher
 fixes. It does not start graphical applications during command-line builds.
-PlanAhead, EDK, and USB programming support are outside the modern runtime.
+Linux USB/JTAG support is included in both variants. PlanAhead and EDK
+are not included.
 
 An existing **unpatched** ISE installation image can optionally supply the
 vendor files instead of running the installer:
@@ -71,7 +73,7 @@ An explicit `--build-arg ENABLE_ROSETTA_COMPATIBILITY=...` overrides the wrapper
 environment setting. Direct `docker build` invocations need the build
 argument explicitly. There is no automatic host detection or runtime
 patching; changing `docker run` environment variables does not change the
-binaries. The legacy target does not apply this patch.
+binaries.
 
 The `ENABLE_` prefix is intentional: Rosetta rejects unknown `ROSETTA_`
 environment variables before the translated build shell can start.
@@ -270,16 +272,35 @@ Building accepts the installer EULAs, as the previous script did. The
 installer files occupy several GB, so allow additional space for unpacking
 and image layers. The build does not push an image.
 
-## Original Linux GUI/USB packaging
+## Linux X11 and USB/JTAG
 
-The original Ubuntu 14.04 runtime and USB driver recipe are preserved as
-an explicit target in the same Dockerfile:
+Linux uses the same `ise-14-7` image. From your project directory:
 
 ```sh
-docker build --platform linux/amd64 --target legacy -t ise-14-7-legacy .
+/path/to/ise-docker/run-docker ise project.xise
+/path/to/ise-docker/run-docker impact -batch program.cmd
 ```
 
-The older `run-docker` and `run-docker-ssh` scripts now select that legacy
-tag. They retain their Linux GUI/USB assumptions; use `xilinx-gui` for the
-validated native XQuartz path. The legacy target requires the installer
-archives and does not use `ENABLE_GUI` or the modern runtime fixes.
+With no arguments, `run-docker` opens a shell. It mounts the project at
+`/build`, uses your UID/GID and supplementary groups, and accepts the same
+`ISE_PROJECT_ROOT`, `ISE_IMAGE` and `ISE_LICENSE_FILE` settings as `xilinx`.
+GUI applications require the default `ENABLE_GUI=1` build; batch iMPACT
+also works in a headless image.
+
+The launcher forwards the current X11 display with a temporary private
+authentication cookie and mounts `/dev/bus/usb` when available. Host
+networking also supports an SSH-forwarded display; `run-docker-ssh` is an
+alias for this launcher. The host needs `xauth` when `DISPLAY` is set.
+
+The image includes the [userspace Xilinx cable driver](https://github.com/dennisfen/xilinx-usb-driver),
+`usbutils` and `fxload`. The `impact` launcher preloads the driver only for
+iMPACT, leaving synthesis and other tools unaffected. The source and
+`setup_pcusb` helper are in `/opt/xilinx-usb-driver`; vendor cable firmware
+is in `/opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64`.
+
+USB permissions and initial cable firmware loading must be configured on
+the Linux host, following the driver's instructions. Container device
+access does not replace host udev setup. Compilation and driver loading
+can be checked without a cable; physical JTAG programming has not been
+validated here. On macOS, use `xilinx` and `xilinx-gui`; these launchers do
+not provide direct USB passthrough from macOS into Docker Desktop.
