@@ -1,5 +1,5 @@
-# By default install from local vendor media; an existing image can
-# supply the files instead with --build-arg ISE_BASE_IMAGE=...
+# By default install from local vendor media; an existing unpatched image
+# can supply the files instead with --build-arg ISE_BASE_IMAGE=...
 ARG ISE_BASE_IMAGE=install
 
 FROM ubuntu:14.04 AS install
@@ -82,8 +82,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # PlanAhead are separate products and are not needed for this CLI target.
 COPY --from=installed /opt/Xilinx/14.7/ISE_DS/ISE /opt/Xilinx/14.7/ISE_DS/ISE
 COPY --from=installed /opt/Xilinx/14.7/ISE_DS/common /opt/Xilinx/14.7/ISE_DS/common
+COPY tools/patch-iostreams.py /usr/local/lib/ise/patch-iostreams.py
+# Apply the binary compatibility patch only when explicitly requested.
+ARG ENABLE_ROSETTA_COMPATIBILITY=0
+RUN set -e; case "$ENABLE_ROSETTA_COMPATIBILITY" in \
+        0) exit 0 ;; \
+        1) ;; \
+        *) echo 'ENABLE_ROSETTA_COMPATIBILITY must be 0 or 1' >&2; exit 2 ;; \
+    esac; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends python3; \
+    rm -rf /var/lib/apt/lists/*; \
+    for component in ISE common; do \
+    library=/opt/Xilinx/14.7/ISE_DS/$component/lib/lin64/libisl_iostreams.so; \
+    python3 /usr/local/lib/ise/patch-iostreams.py "$library" "$library.patched"; \
+    mv "$library" "$library.original"; \
+    mv "$library.patched" "$library"; \
+    done
 
-# GUI support is optional; both variants contain the same CLI tools.
+# GUI support is independent of the optional Rosetta compatibility patch.
 ARG ENABLE_GUI=1
 RUN case "$ENABLE_GUI" in \
         0) exit 0 ;; \

@@ -8,10 +8,13 @@ support on Linux and macOS.
 The single `Dockerfile` uses the installer stage by default. Run:
 
 ```sh
-# GUI enabled by default; also works for command-line builds.
+# GUI enabled by default; Rosetta binary patch disabled.
 ./build
 
-# CLI-only variant: skip the extra GUI packages and compatibility fixes.
+# Opt in to the Rosetta binary compatibility patch on Apple Silicon.
+./build --build-arg ENABLE_ROSETTA_COMPATIBILITY=1
+
+# CLI-only variant: skip the extra GUI packages and GUI fixes.
 ./build --build-arg ENABLE_GUI=0
 ```
 
@@ -22,7 +25,7 @@ completed archive, and continues the build. Subsequent builds reuse it.
 This needs Python 3 on the host. [Manual download instructions](#manual-download)
 and [helper options](#download-helper) are below.
 
-Both commands tag the result `ise-14-7`; choose one variant. To keep both,
+These commands tag the result `ise-14-7`; choose one variant. To keep both,
 use distinct tags with Docker directly:
 
 ```sh
@@ -37,7 +40,7 @@ GUI support adds Java 8, GCC for ISim, X11 libraries, and ChipScope launcher
 fixes. It does not start graphical applications during command-line builds.
 PlanAhead, EDK, and USB programming support are outside the modern runtime.
 
-An existing ISE installation image can optionally supply the
+An existing **unpatched** ISE installation image can optionally supply the
 vendor files instead of running the installer:
 
 ```sh
@@ -46,6 +49,36 @@ vendor files instead of running the installer:
 
 This overrides only the vendor-file source; the runtime is built by this
 repository. No external ISE image is needed when using the installer archive.
+
+## Optional Rosetta compatibility patch
+
+`ENABLE_ROSETTA_COMPATIBILITY` is a Docker build argument accepting `0` (default)
+or `1`. With `0`, the build leaves both `libisl_iostreams.so` files as
+supplied by the installer or source image. With `1`, it applies the
+version-specific [binary patch](tools/patch-iostreams.py),
+accepts only the tested original library hash, and keeps each original
+beside the patched file as `.so.original`. Invalid values fail the build.
+
+The build wrapper also supports an environment-variable shortcut:
+
+```sh
+ENABLE_ROSETTA_COMPATIBILITY=1 ./build
+# Both switches can be used together:
+./build --build-arg ENABLE_ROSETTA_COMPATIBILITY=1 --build-arg ENABLE_GUI=0
+```
+
+An explicit `--build-arg ENABLE_ROSETTA_COMPATIBILITY=...` overrides the wrapper's
+environment setting. Direct `docker build` invocations need the build
+argument explicitly. There is no automatic host detection or runtime
+patching; changing `docker run` environment variables does not change the
+binaries. The legacy target does not apply this patch.
+
+The `ENABLE_` prefix is intentional: Rosetta rejects unknown `ROSETTA_`
+environment variables before the translated build shell can start.
+
+GUI support is independent of this option. Existing images retain their
+previous patch state until rebuilt. The option defaults to off on Apple
+Silicon too, where unpatched ISE startup can be very slow under Rosetta.
 
 ## Command-line builds
 

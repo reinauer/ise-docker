@@ -31,4 +31,9 @@ if [[ $needs_media == 1 && $source_image == install ]]; then
         ./download-installer
     fi
 fi
-docker build --platform linux/amd64 -t ise-14-7 "$@" .
+# Explicit Docker arguments take precedence over the environment shortcut.
+compatibility_args=()
+if [[ -n ${ENABLE_ROSETTA_COMPATIBILITY+x} ]]; then
+    compatibility_args+=(--build-arg "ENABLE_ROSETTA_COMPATIBILITY=$ENABLE_ROSETTA_COMPATIBILITY")
+fi
+docker build --platform linux/amd64 -t ise-14-7 "${compatibility_args[@]}" "$@" .
